@@ -15,10 +15,10 @@ UNAME := $(shell uname)
 LIBRARY = rpc
 
 # compiler, arguments and libs for GCC under unix
-CFLAGS += -ansi -fpic -std=c99 -pedantic -g -DLUARPC_STANDALONE -DBUILD_RPC
+CFLAGS += -ansi -fpic -std=c99 -pedantic -g -DLUARPC_STANDALONE -DBUILD_RPC -Wall
 
-OBJECTS = luarpc.o luarpc_serial.o luarpc_socket.o serial_posix.o
-
+OBJECTS = luarpc.o transport.o client.o server.o luagoodies.o luarpc_serial.o luarpc_socket.o serial_posix.o
+# luarpc-client.o
 # compiler, arguments and libs for GCC under windows
 #CC=gcc -Wall
 #CFLAGS=-DWIN32

@@ -176,3 +176,36 @@ int transport_is_open (Transport *tpt);
 
 // Shut down connection
 void transport_close (Transport *tpt);
+
+
+// added by edo
+
+// luagoodies
+void my_lua_error( lua_State *L, const char *errmsg );
+int check_num_args( lua_State *L, int desired_n );
+int ismetatable_type( lua_State *L, int ud, const char *tname );
+
+// transport
+void transport_read_string( Transport *tpt, const char *buffer, int length );
+void transport_write_string( Transport *tpt, const char *buffer, int length );
+u8 transport_read_u8( Transport *tpt );
+void transport_write_u8( Transport *tpt, u8 x );
+u32 transport_read_u32( Transport *tpt );
+void transport_write_u32( Transport *tpt, u32 x );
+lua_Number transport_read_number( Transport *tpt );
+void transport_write_number( Transport *tpt, lua_Number x );
+void write_variable( Transport *tpt, lua_State *L, int var_index );
+int read_variable( Transport *tpt, lua_State *L );
+
+// luarpc
+void helper_remote_index( Helper *helper ); //?!?
+
+// client
+void register_client(lua_State *L);
+
+// server
+int rpc_dispatch( lua_State *L );
+void rpc_dispatch_helper( lua_State *L, ServerHandle *handle );
+ServerHandle *server_handle_create( lua_State *L );
+void server_handle_shutdown( ServerHandle *h );
+void server_handle_destroy( ServerHandle *h );
