@@ -220,7 +220,9 @@ void write_variable( Transport *tpt, lua_State *L, int var_index );
 int read_variable( Transport *tpt, lua_State *L );
 
 // luarpc
+void server_negotiate( Transport *tpt );
 void helper_remote_index( Helper *helper ); //?!?
+int global_error_handler;
 
 // client
 void register_client(lua_State *L);

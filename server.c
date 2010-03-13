@@ -141,61 +141,6 @@ static const char * errorString( int n )
 
 
 // **************************************************************************
-// rpc utilities
-
-// functions for sending and receving headers 
-
-static void server_negotiate( Transport *tpt )
-{
-  struct exception e;
-  char header[ 8 ];
-  int x = 1;
-  
-  TRANSPORT_START_READING(tpt);
- // default sever configuration
-  tpt->net_little = tpt->loc_little = ( char )*( char * )&x;
-  tpt->lnum_bytes = ( char )sizeof( lua_Number );
-  tpt->net_intnum = tpt->loc_intnum = ( char )( ( ( lua_Number )0.5 ) == 0 );
-  
-  // read and check header from client
-  transport_read_string( tpt, header, sizeof( header ) );
-  if( header[0] != 'L' ||
-      header[1] != 'R' ||
-      header[2] != 'P' ||
-      header[3] != 'C' ||
-      header[4] != RPC_PROTOCOL_VERSION )
-  {
-    e.errnum = ERR_HEADER;
-    e.type = nonfatal;
-    Throw( e );
-  }
-  
-  // check if endianness differs, if so use big endian order  
-  if( header[ 5 ] != tpt->loc_little )
-    header[ 5 ] = tpt->net_little = 0;
-    
-  // set number precision to lowest common denominator 
-  if( header[ 6 ] > tpt->lnum_bytes )
-    header[ 6 ] = tpt->lnum_bytes;
-  if( header[ 6 ] < tpt->lnum_bytes )
-    tpt->lnum_bytes = header[ 6 ];
-  
-  // if lua_Number is integer on either side, use integer 
-  if( header[ 7 ] != tpt->loc_intnum )
-    header[ 7 ] = tpt->net_intnum = 1;
-  
-  // send reconciled configuration to client
-  TRANSPORT_START_WRITING(tpt);
-  transport_write_string( tpt, header, sizeof( header ) );
-  TRANSPORT_STOP(tpt);
-}
-
-#if 0
-// global error default (no handler) 
-static int global_error_handler = LUA_NOREF;
-#endif
-
-// **************************************************************************
 // server side handle userdata objects. 
 
 ServerHandle *server_handle_create( lua_State *L )

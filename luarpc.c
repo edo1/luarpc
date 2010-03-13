@@ -56,53 +56,6 @@ Handle *handle_create( lua_State *L );
 
 struct exception_context the_exception_context[ 1 ];
 
-#if 0
-
-static void errorMessage( const char *msg, va_list ap )
-{
-  fflush( stdout );
-  fflush( stderr );
-  fprintf( stderr,"\nError: " );
-  vfprintf( stderr,msg,ap );
-  fprintf( stderr,"\n\n" );
-  fflush( stderr );
-}
-
-DOGCC(static void panic( const char *msg, ... )
-      __attribute__ ((noreturn,unused));)
-static void panic (const char *msg, ...)
-{
-  va_list ap;
-  va_start (ap,msg);
-  errorMessage (msg,ap);
-  exit (1);
-}
-
-
-DOGCC(static void rpcdebug( const char *msg, ... )
-      __attribute__ ((noreturn,unused));)
-static void rpcdebug (const char *msg, ...)
-{
-  va_list ap;
-  va_start (ap,msg);
-  errorMessage (msg,ap);
-  abort();
-}
-
-// Lua Types
-enum {
-  RPC_NIL=0,
-  RPC_NUMBER,
-  RPC_BOOLEAN,
-  RPC_STRING,
-  RPC_TABLE,
-  RPC_TABLE_END,
-  RPC_FUNCTION,
-  RPC_FUNCTION_END,
-  RPC_REMOTE
-};
-#endif
-
 // RPC Commands
 enum
 {
@@ -121,7 +74,6 @@ enum
 };
 
 enum { RPC_PROTOCOL_VERSION = 3 };
-
 
 // return a string representation of an error number 
 
@@ -190,14 +142,14 @@ static void client_negotiate( Transport *tpt )
   tpt->net_intnum = header[7];
 }
 
-#if 0
-static void server_negotiate( Transport *tpt )
+void server_negotiate( Transport *tpt )
 {
   struct exception e;
   char header[ 8 ];
   int x = 1;
   
-  // default sever configuration
+  TRANSPORT_START_READING(tpt);
+ // default sever configuration
   tpt->net_little = tpt->loc_little = ( char )*( char * )&x;
   tpt->lnum_bytes = ( char )sizeof( lua_Number );
   tpt->net_intnum = tpt->loc_intnum = ( char )( ( ( lua_Number )0.5 ) == 0 );
@@ -230,12 +182,13 @@ static void server_negotiate( Transport *tpt )
     header[ 7 ] = tpt->net_intnum = 1;
   
   // send reconciled configuration to client
+  TRANSPORT_START_WRITING(tpt);
   transport_write_string( tpt, header, sizeof( header ) );
+  TRANSPORT_STOP(tpt);
 }
-#endif
 
 // global error default (no handler) 
-static int global_error_handler = LUA_NOREF;
+int global_error_handler = LUA_NOREF;
 
 // **************************************************************************
 // remote function calling (client side)

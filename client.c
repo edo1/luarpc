@@ -49,59 +49,6 @@ void *alloca(size_t);
 #define LUA_ISCALLABLE( state, idx ) lua_isfunction( state, idx )
 #endif
 
-// Prototypes for Local Functions  
-LUALIB_API int luaopen_rpc( lua_State *L );
-Handle *handle_create( lua_State *L );
-
-
-struct exception_context the_exception_context[ 1 ];
-
-#if 0
-
-static void errorMessage( const char *msg, va_list ap )
-{
-  fflush( stdout );
-  fflush( stderr );
-  fprintf( stderr,"\nError: " );
-  vfprintf( stderr,msg,ap );
-  fprintf( stderr,"\n\n" );
-  fflush( stderr );
-}
-
-DOGCC(static void panic( const char *msg, ... )
-      __attribute__ ((noreturn,unused));)
-static void panic (const char *msg, ...)
-{
-  va_list ap;
-  va_start (ap,msg);
-  errorMessage (msg,ap);
-  exit (1);
-}
-
-
-DOGCC(static void rpcdebug( const char *msg, ... )
-      __attribute__ ((noreturn,unused));)
-static void rpcdebug (const char *msg, ...)
-{
-  va_list ap;
-  va_start (ap,msg);
-  errorMessage (msg,ap);
-  abort();
-}
-
-// Lua Types
-enum {
-  RPC_NIL=0,
-  RPC_NUMBER,
-  RPC_BOOLEAN,
-  RPC_STRING,
-  RPC_TABLE,
-  RPC_TABLE_END,
-  RPC_FUNCTION,
-  RPC_FUNCTION_END,
-  RPC_REMOTE
-};
-#endif
 
 // RPC Commands
 enum
@@ -122,7 +69,6 @@ enum
 
 enum { RPC_PROTOCOL_VERSION = 3 };
 
-
 // return a string representation of an error number 
 
 static const char * errorString( int n )
@@ -140,53 +86,6 @@ static const char * errorString( int n )
 }
 
 
-// **************************************************************************
-// rpc utilities
-
-// functions for sending and receving headers 
-#if 0
-void client_negotiate( Transport *tpt )
-{
-  struct exception e;
-  char header[ 8 ];
-  int x = 1;
-
-  // default client configuration
-  tpt->loc_little = ( char )*( char * )&x;
-  tpt->lnum_bytes = ( char )sizeof( lua_Number );
-  tpt->loc_intnum = ( char )( ( ( lua_Number )0.5 ) == 0 );
-
-  // write the protocol header 
-  header[0] = 'L';
-  header[1] = 'R';
-  header[2] = 'P';
-  header[3] = 'C';
-  header[4] = RPC_PROTOCOL_VERSION;
-  header[5] = tpt->loc_little;
-  header[6] = tpt->lnum_bytes;
-  header[7] = tpt->loc_intnum;
-  transport_write_string( tpt, header, sizeof( header ) );
-  
-  
-  // read server's response
-  transport_read_string( tpt, header, sizeof( header ) );
-  if( header[0] != 'L' ||
-      header[1] != 'R' ||
-      header[2] != 'P' ||
-      header[3] != 'C' ||
-      header[4] != RPC_PROTOCOL_VERSION )
-  {
-    e.errnum = ERR_HEADER;
-    e.type = nonfatal;
-    Throw( e );
-  }
-  
-  // write configuration from response
-  tpt->net_little = header[5];
-  tpt->lnum_bytes = header[6];
-  tpt->net_intnum = header[7];
-}
-#endif
 
 static int generic_catch_handler(lua_State *L, Handle *handle, struct exception e )
 {
@@ -215,9 +114,6 @@ static int generic_catch_handler(lua_State *L, Handle *handle, struct exception 
 //     handle.funcname (a,b,c)
 //  "handle.funcname" returns the helper object, which calls the remote
 //  function.
-
-// global error default (no handler) 
-static int global_error_handler = LUA_NOREF;
 
 // handle a client or server side error. NOTE: this function may or may not
 // return. the handle `h' may be 0.
@@ -599,118 +495,6 @@ static int helper_close (lua_State *L)
   return 0;
 }
 
-
-// **************************************************************************
-// server side handle userdata objects. 
-#if 0
-static ServerHandle *server_handle_create( lua_State *L )
-{
-  ServerHandle *h = ( ServerHandle * )lua_newuserdata( L, sizeof( ServerHandle ) );
-  luaL_getmetatable( L, "rpc.server_handle" );
-  lua_setmetatable( L, -2 );
-
-  h->link_errs = 0;
-
-  transport_init( &h->ltpt );
-  transport_init( &h->atpt );
-  return h;
-}
-
-static void server_handle_shutdown( ServerHandle *h )
-{
-  transport_close( &h->ltpt );
-  transport_close( &h->atpt );
-}
-
-static void server_handle_destroy( ServerHandle *h )
-{
-  server_handle_shutdown( h );
-}
-#endif
-// **************************************************************************
-// remote function calling (client side)
-
-// rpc_connect (ip_address, port)
-//      returns a handle to the new connection, or nil if there was an error.
-//      if there is an RPC error function defined, it will be called on error.
-
-#if 0
-static int rpc_connect( lua_State *L )
-{
-  struct exception e;
-  Handle *handle = 0;
-  
-  Try
-  {
-    handle = handle_create ( L );
-    transport_open_connection( L, handle );
-    
-    TRANSPORT_START_WRITING(&handle->tpt);
-    transport_write_u8( &handle->tpt, RPC_CMD_CON );
-    client_negotiate( &handle->tpt );
-  }
-  Catch( e )
-  {     
-    deal_with_error( L, 0, errorString( e.errnum ) );
-    lua_pushnil( L );
-  }
-  return 1;
-}
-
-
-// rpc_close( handle )
-//     this closes the transport, but does not free the handle object. that's
-//     because the handle will still be in the user's name space and might be
-//     referred to again. we'll let garbage collection free the object.
-//     it's a lua runtime error to refer to a transport after it has been closed.
-
-
-static int rpc_close( lua_State *L )
-{
-  check_num_args( L, 1 );
-
-  if( lua_isuserdata( L, 1 ) )
-  {
-    if( ismetatable_type( L, 1, "rpc.handle" ) )
-    {
-      Handle *handle = ( Handle * )lua_touserdata( L, 1 );
-      transport_close( &handle->tpt );
-      return 0;
-    }
-    if( ismetatable_type( L, 1, "rpc.server_handle" ) )
-    {
-      ServerHandle *handle = ( ServerHandle * )lua_touserdata( L, 1 );
-      server_handle_shutdown( handle );
-      return 0;
-    }
-  }
-
-  return luaL_error(L,"arg must be handle");
-}
-
-#endif
-// rpc_async (handle,)
-//     this sets a handle's asynchronous calling mode (0/nil=off, other=on).
-//     (this is for the client only).
-//     @@@ Before re-enabling, this should be brought up to date with multi-command architecture
-
-// static int rpc_async (lua_State *L)
-// {
-//   Handle *handle;
-//   check_num_args( L, 2 );
-// 
-//   if ( !lua_isuserdata( L, 1 ) || !ismetatable_type( L, 1, "rpc.handle" ) )
-//     my_lua_error( L, "first arg must be client handle" );
-// 
-//   handle = ( Handle * )lua_touserdata( L, 1 );
-// 
-//   if ( lua_isnil( L, 2 ) || ( lua_isnumber( L, 2 ) && lua_tonumber( L, 2 ) == 0) )
-//     handle->async = 0;
-//   else
-//     handle->async = 1;
-// 
-//   return 0;
-// }
 
 #ifndef LUARPC_STANDALONE
 
