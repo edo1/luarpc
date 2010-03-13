@@ -151,7 +151,8 @@ static void server_negotiate( Transport *tpt )
   char header[ 8 ];
   int x = 1;
   
-  // default sever configuration
+  TRANSPORT_START_READING(tpt);
+ // default sever configuration
   tpt->net_little = tpt->loc_little = ( char )*( char * )&x;
   tpt->lnum_bytes = ( char )sizeof( lua_Number );
   tpt->net_intnum = tpt->loc_intnum = ( char )( ( ( lua_Number )0.5 ) == 0 );
@@ -184,7 +185,9 @@ static void server_negotiate( Transport *tpt )
     header[ 7 ] = tpt->net_intnum = 1;
   
   // send reconciled configuration to client
+  TRANSPORT_START_WRITING(tpt);
   transport_write_string( tpt, header, sizeof( header ) );
+  TRANSPORT_STOP(tpt);
 }
 
 #if 0
@@ -269,6 +272,9 @@ static void read_cmd_call( Transport *tpt, lua_State *L )
     error_code = lua_pcall( L, nargs, LUA_MULTRET, 0 );
     
     // handle errors
+
+    TRANSPORT_START_WRITING(tpt);
+
     if ( error_code )
     {
       size_t len;
@@ -330,6 +336,8 @@ static void read_cmd_get( Transport *tpt, lua_State *L )
     token = strtok( NULL, "." );
   }
 
+  TRANSPORT_START_WRITING(tpt);
+
   // return top value on stack
   write_variable( tpt, L, lua_gettop( L ) );
 
@@ -374,6 +382,9 @@ static void read_cmd_newindex( Transport *tpt, lua_State *L )
     read_variable( tpt, L ); // value
     lua_setglobal( L, lua_tostring( L, -2 ) );
   }
+
+  TRANSPORT_START_WRITING(tpt);
+
   // Write out 0 to indicate no error and that we're done
   transport_write_u8( tpt, 0 );
   
@@ -404,6 +415,8 @@ void rpc_dispatch_helper( lua_State *L, ServerHandle *handle )
     {
       Try
       {
+        TRANSPORT_START_READING(&handle->atpt);
+
         switch ( transport_read_u8( &handle->atpt ) )
         {
           case RPC_CMD_CALL:  // call function
@@ -437,6 +450,8 @@ void rpc_dispatch_helper( lua_State *L, ServerHandle *handle )
         }
         
         handle->link_errs = 0;
+
+        TRANSPORT_STOP(&handle->atpt);
       }
       Catch( e )
       {
@@ -465,6 +480,7 @@ void rpc_dispatch_helper( lua_State *L, ServerHandle *handle )
       // listening transport
       transport_accept( &handle->ltpt, &handle->atpt );
       
+      TRANSPORT_START_READING(&handle->atpt);
       switch ( transport_read_u8( &handle->atpt ) )
       {
         case RPC_CMD_CON:

@@ -98,7 +98,8 @@ struct _Transport
          loc_armflt: 1,               // local float representation is arm float?
          loc_intnum: 1,               // Local is integer only?
          net_little: 1,               // Network is little endian?
-         net_intnum: 1;               // Network is integer only?
+         net_intnum: 1,               // Network is integer only?
+         mode: 2;                     // read (0) or write (1)
   u8     lnum_bytes;
 };
 
@@ -143,6 +144,23 @@ struct _ServerHandle {
 		Throw( e ); \
 	}
 
+#define TRANSPORT_VERIFY_READ \
+	if (tpt->mode != 0) \
+	{ \
+		e.errnum = ERR_EOF; \
+		e.type = fatal; \
+		Throw( e ); \
+	}
+
+#define TRANSPORT_VERIFY_WRITE \
+	if (tpt->mode != 1) \
+	{ \
+		e.errnum = ERR_EOF; \
+		e.type = fatal; \
+		Throw( e ); \
+	}
+
+
 // Arg & Error Checking Provided to Transport Mechanisms 
 int check_num_args (lua_State *L, int desired_n);
 void deal_with_error (lua_State *L, Handle *h, const char *error_string);
@@ -186,6 +204,10 @@ int check_num_args( lua_State *L, int desired_n );
 int ismetatable_type( lua_State *L, int ud, const char *tname );
 
 // transport
+void transport_set_mode( Transport *tpt, int mode);
+#define TRANSPORT_START_READING(t) transport_set_mode((t),0)
+#define TRANSPORT_START_WRITING(t) transport_set_mode((t),1)
+#define TRANSPORT_STOP(t) transport_set_mode((t),2)
 void transport_read_string( Transport *tpt, const char *buffer, int length );
 void transport_write_string( Transport *tpt, const char *buffer, int length );
 u8 transport_read_u8( Transport *tpt );

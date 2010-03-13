@@ -146,6 +146,8 @@ static const char * errorString( int n )
 // read arbitrary length from the transport into a string buffer. 
 void transport_read_string( Transport *tpt, const char *buffer, int length )
 {
+  struct exception e;
+  TRANSPORT_VERIFY_READ;
   transport_read_buffer( tpt, ( u8 * )buffer, length );
 }
 
@@ -153,6 +155,8 @@ void transport_read_string( Transport *tpt, const char *buffer, int length )
 // write arbitrary length string buffer to the transport 
 void transport_write_string( Transport *tpt, const char *buffer, int length )
 {
+  struct exception e;
+  TRANSPORT_VERIFY_WRITE;
   transport_write_buffer( tpt, ( u8 * )buffer, length );
 }
 
@@ -163,6 +167,7 @@ u8 transport_read_u8( Transport *tpt )
   u8 b;
   struct exception e;
   TRANSPORT_VERIFY_OPEN;
+  TRANSPORT_VERIFY_READ;
   transport_read_buffer( tpt, &b, 1 );
   return b;
 }
@@ -173,6 +178,7 @@ void transport_write_u8( Transport *tpt, u8 x )
 {
   struct exception e;
   TRANSPORT_VERIFY_OPEN;
+  TRANSPORT_VERIFY_WRITE;
   transport_write_buffer( tpt, &x, 1 );
 }
 
@@ -198,6 +204,7 @@ u32 transport_read_u32( Transport *tpt )
   union u32_bytes ub;
   struct exception e;
   TRANSPORT_VERIFY_OPEN;
+  TRANSPORT_VERIFY_READ;
   transport_read_buffer ( tpt, ub.b, 4 );
   if( tpt->net_little != tpt->loc_little )
     swap_bytes( ( uint8_t * )ub.b, 4 );
@@ -211,6 +218,7 @@ void transport_write_u32( Transport *tpt, u32 x )
   union u32_bytes ub;
   struct exception e;
   TRANSPORT_VERIFY_OPEN;
+  TRANSPORT_VERIFY_WRITE;
   ub.i = ( uint32_t )x;
   if( tpt->net_little != tpt->loc_little )
     swap_bytes( ( uint8_t * )ub.b, 4 );
@@ -224,6 +232,7 @@ lua_Number transport_read_number( Transport *tpt )
   u8 b[ tpt->lnum_bytes ];
   struct exception e;
   TRANSPORT_VERIFY_OPEN;
+  TRANSPORT_VERIFY_READ;
   transport_read_buffer ( tpt, b, tpt->lnum_bytes );
   
   if( tpt->net_little != tpt->loc_little )
@@ -264,6 +273,7 @@ void transport_write_number( Transport *tpt, lua_Number x )
 {
   struct exception e;
   TRANSPORT_VERIFY_OPEN;
+  TRANSPORT_VERIFY_WRITE;
    
   if( tpt->net_intnum )
   {
@@ -569,4 +579,10 @@ int read_variable( Transport *tpt, lua_State *L )
       Throw( e );
   }
   return 1;
+}
+
+void transport_set_mode(Transport *tpt, int mode)
+{
+printf("transport switched to mode %d\n",mode);
+    tpt->mode=mode;
 }

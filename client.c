@@ -357,7 +357,7 @@ static void helper_wait_ready( Transport *tpt, u8 cmd )
 
 }
 #else
-#deine helper_wait_ready transport_write_u8
+#define helper_wait_ready transport_write_u8
 #endif
 
 static int helper_get( lua_State *L, Helper *helper )
@@ -368,10 +368,13 @@ static int helper_get( lua_State *L, Helper *helper )
   
   Try
   {
+    TRANSPORT_START_WRITING(tpt);
     helper_wait_ready( tpt, RPC_CMD_GET );
     helper_remote_index( helper );
     
+    TRANSPORT_START_READING(tpt);
     read_variable( tpt, L );
+    TRANSPORT_STOP(tpt);
 
     freturn = 1;
   }
@@ -441,9 +444,11 @@ static int helper_call (lua_State *L)
       int i,n;
       u32 nret,ret_code;
 
+     TRANSPORT_START_WRITING(tpt);
       // write function name
       helper_wait_ready( tpt, RPC_CMD_CALL );
       helper_remote_index( h );
+
 
       // write number of arguments
       n = lua_gettop( L );
@@ -460,6 +465,7 @@ static int helper_call (lua_State *L)
         freturn = 0;
       }*/
 
+      TRANSPORT_START_READING(tpt);
       // read return code
       ret_code = transport_read_u8( tpt );
 
@@ -485,6 +491,9 @@ static int helper_call (lua_State *L)
         deal_with_error( L, h->handle, err_string );
         freturn = 0;
       }
+
+      TRANSPORT_STOP(tpt);
+
     }
     Catch( e )
     {
@@ -513,12 +522,14 @@ static int helper_newindex( lua_State *L )
   Try
   {  
     // index destination on remote side
+    TRANSPORT_START_WRITING(tpt);
     helper_wait_ready( tpt, RPC_CMD_NEWINDEX );
     helper_remote_index( h );
 
     write_variable( tpt, L, lua_gettop( L ) - 1 );
     write_variable( tpt, L, lua_gettop( L ) );
 
+    TRANSPORT_START_READING(tpt);
     ret_code = transport_read_u8( tpt );
     if( ret_code != 0 )
     {
@@ -531,6 +542,8 @@ static int helper_newindex( lua_State *L )
 
       deal_with_error( L, h->handle, err_string );
     }
+
+    TRANSPORT_STOP(tpt);
 
     freturn = 0;
   }
@@ -632,6 +645,7 @@ static int rpc_connect( lua_State *L )
     handle = handle_create ( L );
     transport_open_connection( L, handle );
     
+    TRANSPORT_START_WRITING(&handle->tpt);
     transport_write_u8( &handle->tpt, RPC_CMD_CON );
     client_negotiate( &handle->tpt );
   }

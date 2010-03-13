@@ -150,6 +150,7 @@ static void client_negotiate( Transport *tpt )
   char header[ 8 ];
   int x = 1;
 
+  TRANSPORT_START_WRITING(tpt);
   // default client configuration
   tpt->loc_little = ( char )*( char * )&x;
   tpt->lnum_bytes = ( char )sizeof( lua_Number );
@@ -167,6 +168,7 @@ static void client_negotiate( Transport *tpt )
   transport_write_string( tpt, header, sizeof( header ) );
   
   
+  TRANSPORT_START_READING(tpt);
   // read server's response
   transport_read_string( tpt, header, sizeof( header ) );
   if( header[0] != 'L' ||
@@ -180,6 +182,8 @@ static void client_negotiate( Transport *tpt )
     Throw( e );
   }
   
+  TRANSPORT_STOP(tpt);
+
   // write configuration from response
   tpt->net_little = header[5];
   tpt->lnum_bytes = header[6];
@@ -249,7 +253,8 @@ static int rpc_connect( lua_State *L )
   {
     handle = handle_create ( L );
     transport_open_connection( L, handle );
-    
+
+    TRANSPORT_START_WRITING(&handle->tpt);
     transport_write_u8( &handle->tpt, RPC_CMD_CON );
     client_negotiate( &handle->tpt );
   }
