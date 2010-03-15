@@ -24,6 +24,8 @@ OBJECTS = luarpc.o transport.o client.o server.o luagoodies.o luarpc_serial.o lu
 #CFLAGS=-DWIN32
 #LIB=-llua -llualib -lwsock32 -lm
 
+all: socket udp.so
+
 ##############################################################################
 # don't change anything below this line
  
@@ -36,6 +38,13 @@ LFLAGS = -O -fpic -dynamiclib -undefined dynamic_lookup
 endif
 
 .SUFFIXES: .o .c
+
+protocol.so: protocol.o
+	gcc $(LFLAGS) -o $@ $<
+
+
+udp.so: udp.o
+	gcc $(LFLAGS) -o $@ $<
 
 socket:
 	CFLAGS=-DLUARPC_ENABLE_SOCKET $(MAKE) $(LIBRARY).so
